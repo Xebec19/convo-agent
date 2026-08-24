@@ -1,0 +1,112 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        run: |
+          git diff \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            > pr.diff
+
+      - name: Review code with Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          with open("pr.diff", "r", encoding="utf-8") as f:
+              diff = f.read()
+
+          prompt = f"""
+          You are an experienced senior software engineer performing a code review.
+
+          Review the following GitHub pull request diff.
+
+          Focus on:
+          - bugs and incorrect behavior
+          - security vulnerabilities
+          - race conditions
+          - performance problems
+          - error handling
+          - bad API usage
+          - maintainability issues
+
+          Do NOT complain about:
+          - formatting
+          - trivial naming preferences
+          - subjective style choices
+
+          Only report issues that are meaningful.
+
+          For every issue provide:
+          1. Severity: critical/high/medium/low
+          2. File/line if identifiable
+          3. Problem
+          4. Why it matters
+          5. Suggested fix
+
+          If there are no meaningful issues, say:
+          "LGTM - no significant issues found."
+
+          PR DIFF:
+          {diff}
+          """
+
+          data = {
+              "contents": [
+                  {
+                      "parts": [
+                          {
+                              "text": prompt
+                          }
+                      ]
+                  }
+              ]
+          }
+
+          req = urllib.request.Request(
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+              data=json.dumps(data).encode(),
+              headers={
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": os.environ["GEMINI_API_KEY"],
+              },
+              method="POST",
+          )
+
+          with urllib.request.urlopen(req) as response:
+              result = json.load(response)
+
+          review = result["candidates"][0]["content"]["parts"][0]["text"]
+
+          with open("review.md", "w", encoding="utf-8") as f:
+              f.write(review)
+          PY
+
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment \
+            "${{ github.event.pull_request.number }}" \
+            --body-file review.md
