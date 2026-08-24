@@ -23,7 +23,7 @@ const features = [
 
 const steps = [
   ["01", "Connect", "Securely upload documents or connect your existing data sources."],
-  ["02", "Index", "RAG-Intel processes, chunks, and indexes your data for retrieval."],
+  ["02", "Index", "Convo processes, chunks, and indexes your data for retrieval."],
   ["03", "Ask anything", "Query your knowledge base and get precise answers with sources."],
 ];
 
@@ -33,7 +33,7 @@ export default function Home() {
       <header className="sticky top-0 z-20 border-b border-app-border/30 bg-app-surface/80 backdrop-blur-md">
         <nav className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-5 sm:px-10">
           <div className="flex items-center gap-6 sm:gap-8">
-            <a className="text-2xl font-semibold tracking-[-0.04em]" href="#top">RAG-Intel</a>
+            <a className="text-2xl font-semibold tracking-[-0.04em]" href="#top">Convo</a>
             <div className="hidden items-center gap-6 text-sm text-app-muted sm:flex">
               <a href="#features">Features</a>
               <a href="#how-it-works">How it works</a>
@@ -53,7 +53,7 @@ export default function Home() {
             Transform your documents into intelligence
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-app-muted sm:text-lg sm:leading-[1.625]">
-            Upload, index, and query your enterprise data with pinpoint accuracy. RAG-Intel provides secure, verifiable answers instantly.
+            Upload, index, and query your enterprise data with pinpoint accuracy. Convo provides secure, verifiable answers instantly.
           </p>
           <div className="flex flex-wrap justify-center gap-4 pb-16 pt-8">
             <a id="get-started" className="inline-flex items-center gap-1 rounded-full bg-brand px-6 py-3.5 font-mono text-[13px] font-medium tracking-wide text-primary-foreground shadow-lg shadow-brand/15" href="#how-it-works">
@@ -118,9 +118,9 @@ export default function Home() {
 
       <footer id="login" className="border-t border-app-border/30 bg-app-surface/60 px-5 py-12 sm:px-10">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-6 text-sm text-app-muted md:flex-row">
-          <span className="text-2xl font-semibold tracking-[-0.04em] text-app-foreground">RAG-Intel</span>
+          <span className="text-2xl font-semibold tracking-[-0.04em] text-app-foreground">Convo</span>
           <div className="flex gap-6"><a href="#top">Privacy</a><a href="#top">Terms</a><a href="#top">Contact</a></div>
-          <span>© 2025 RAG-Intel. All rights reserved.</span>
+          <span>© 2025 Convo. All rights reserved.</span>
         </div>
       </footer>
     </main>
