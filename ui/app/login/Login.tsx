@@ -2,9 +2,14 @@
 
 import Link from "next/link"
 import { Eye, LockKeyhole, Mail } from "lucide-react";
+import { authenticate } from "./actions";
+import { useActionState } from "react";
 
 export default function Login() {
-    return <form className="mt-10 space-y-6">
+
+    const [errorMessage, formAction, isPending] = useActionState(authenticate, undefined)
+
+    return <form className="mt-10 space-y-6" action={formAction}>
         <label className="block font-mono text-[13px]">Email Address<div className="relative mt-2"><Mail className="absolute left-4 top-4 text-app-subtle" size={17} />
             <input className="h-12 w-full rounded-lg border border-app-surface/60 bg-app-surface/50 pl-12 outline-none" placeholder="name@company.com" type="email" />
         </div></label>
