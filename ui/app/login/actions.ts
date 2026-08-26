@@ -2,10 +2,12 @@
 
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import z from "zod";
+import { AuthSchema } from "./schema";
 
 export async function authenticate(
   prevState: string | undefined,
-  formData: FormData,
+  formData: z.infer<typeof AuthSchema>,
 ) {
   console.log({ values: formData });
 
