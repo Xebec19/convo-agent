@@ -12,6 +12,17 @@ export const { auth, signIn, signOut } = NextAuth({
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials);
 
+        if (
+          parsedCredentials.data?.email == "rohan@gmail.com" &&
+          parsedCredentials.data?.password == "password@123"
+        ) {
+          return new Promise((resolve, reject) => {
+            resolve({
+              name: "rohan",
+            });
+          });
+        }
+
         return null;
       },
     }),

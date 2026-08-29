@@ -18,7 +18,7 @@ export default function Login() {
             <input className="h-12 w-full rounded-lg border border-app-surface/60 bg-app-surface/50 pl-12 outline-none" placeholder="name@company.com" type="email" autoComplete="email" name="email" required />
         </div></label>
         <label className="block font-mono text-[13px]" htmlFor="password">Password<div className="relative mt-2"><LockKeyhole className="absolute left-4 top-4 text-app-subtle" size={17} />
-            <input className="h-12 w-full rounded-lg border border-app-surface/60 bg-app-surface/50 pl-12" placeholder="••••••••" type="password" autoComplete="current-password" minLength={8} /><Eye className="absolute right-4 top-4 text-app-subtle" size={17} />
+            <input className="h-12 w-full rounded-lg border border-app-surface/60 bg-app-surface/50 pl-12" placeholder="••••••••" type="password" autoComplete="current-password" name="password" minLength={8} /><Eye className="absolute right-4 top-4 text-app-subtle" size={17} />
         </div></label>
         <div className="flex justify-between text-sm"><label className="flex gap-3 text-app-muted"><input type="checkbox" />Remember me</label>
             <a className="font-mono text-[13px] text-brand" href="#">Forgot Password?</a></div>
