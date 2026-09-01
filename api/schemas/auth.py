@@ -8,6 +8,6 @@ class SignInRequest(BaseModel):
 
 class SignUpRequest(BaseModel):
     name: str
-    phoneNum: str
+    phoneNum: str.isnumeric
     email: EmailStr
     password: str
