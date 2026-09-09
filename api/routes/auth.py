@@ -2,33 +2,54 @@ from fastapi import APIRouter, Depends, status, Response, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from api.database import get_db
-from api.models.user_model import User
-from api.schemas.auth import SignInRequest, SignUpRequest
+from database import get_db
+from models.user_model import User
+from schemas.auth import SignInRequest, SignUpRequest
+from services.auth_service import createHash
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup")
-async def signup(request: SignUpRequest, db: Session = Depends(get_db), status_code=201, response: Response):
-    # get name, email, phone num and password
-    # lowercase email and check if it dont have a duplicate in db
-    # validate name and phonenum as well
-    # encrypt password and store it in db
+async def signup(
+    request: SignUpRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+    status_code=201,
+):
 
-    query = select(func.count()).select_from(User).where( func.lower(User.name) ==  request.email.lower())
+    query = (
+        select(func.count())
+        .select_from(User)
+        .where(func.lower(User.name) == request.email.lower())
+    )
 
     count = db.scalar(query)
 
     if count > 0:
+        raise HTTPException(status_code=401, detail="User is already present")
+
+    existing_user = (
+        db.query(User).filter(func.lower(User.name) == request.email.lower()).first()
+    )
+
+    if existing_user:
         raise HTTPException(
-            status_code=401,
-            detail="User is already present"
+            status_code=409,
+            detail="Email already registered",
         )
 
-    
+    password_hash = createHash(request.password)
 
-    
+    user = User(
+        email=request.email,
+        password_hash=password_hash,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {"id": user.id, "email": user.email}
 
 
 @router.get("/signin")
