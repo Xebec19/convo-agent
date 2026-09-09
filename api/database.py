@@ -1,8 +1,9 @@
 from collections.abc import Generator
 
-from sqlalchemy.orm import DeclarativeBase, create_engine, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = "postgresql+psycopg://postgres:password@localhost/mydb"
+DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost/myapp?sslmode=disable"
 
 engine = create_engine(DATABASE_URL)
 

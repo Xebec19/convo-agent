@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, status, Response, HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
-
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException
 from models.user_model import User
 from schemas.auth import SignInRequest, SignUpRequest
 from services.auth_service import createHash
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,6 +40,8 @@ async def signup(
     password_hash = createHash(request.password)
 
     user = User(
+        name=request.name,
+        phone_num=request.phoneNum,
         email=request.email,
         password_hash=password_hash,
     )
