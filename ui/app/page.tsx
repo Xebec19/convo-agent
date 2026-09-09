@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 const features = [
   {
@@ -40,7 +41,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <a className="hidden text-app-muted sm:block" href="#login">Log in</a>
+            <Link href="/login" className="hidden text-app-muted sm:block">Log in</Link>
             <a className="rounded-full bg-brand px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide text-primary-foreground" href="#get-started">Get Started</a>
           </div>
         </nav>
