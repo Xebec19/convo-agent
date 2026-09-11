@@ -56,7 +56,7 @@ async def signup(
     db.commit()
     db.refresh(user)
 
-    return {"id": user.id, "email": user.email}
+    return {"id": user.id}
 
 
 @router.post("/signin")
@@ -70,7 +70,7 @@ async def signin(
         select(User).where(func.lower(User.email) == request.email.lower())
     ).scalar()
 
-    if user is None or verifyHash(request.password, user.password_hash):
+    if user is None or verifyHash(request.password, user.password_hash) is False:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
 
     token = createAccessToken(user.id)

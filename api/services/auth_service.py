@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from jose import jwt
 from pwdlib import PasswordHash
 
@@ -19,7 +20,7 @@ def verifyHash(password: str, hash: str) -> bool:
 
 
 def createAccessToken(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     return jwt.encode(
         {"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM
