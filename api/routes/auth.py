@@ -1,10 +1,17 @@
-from database import get_db
-from fastapi import APIRouter, Depends, HTTPException
-from models.user_model import User
-from schemas.auth import SignInRequest, SignUpRequest
-from services.auth_service import createHash
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+from database import get_db
+from models.user_model import User
+from schemas.auth import SignInRequest, SignUpRequest
+from services.auth_service import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    COOKIE_NAME,
+    createAccessToken,
+    createHash,
+    verifyHash,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -13,7 +20,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def signup(
     request: SignUpRequest,
     db: Session = Depends(get_db),  # noqa: B008
-    status_code=201,
 ):
 
     query = (
@@ -24,7 +30,7 @@ async def signup(
 
     count = db.scalar(query)
 
-    if count > 0:
+    if count is None or count > 0:
         raise HTTPException(status_code=401, detail="User is already present")
 
     existing_user = (
@@ -50,9 +56,33 @@ async def signup(
     db.commit()
     db.refresh(user)
 
-    return {"id": user.id, "email": user.email}
+    return {"id": user.id}
 
 
-@router.get("/signin")
-async def signin(request: SignInRequest):
-    pass
+@router.post("/signin")
+async def signin(
+    request: SignInRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+
+    user = db.execute(
+        select(User).where(func.lower(User.email) == request.email.lower())
+    ).scalar()
+
+    if user is None or verifyHash(request.password, user.password_hash) is False:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
+
+    token = createAccessToken(user.id)
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+    return {"message": "Logged in"}
