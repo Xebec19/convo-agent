@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <main className="landing-page min-h-screen overflow-hidden bg-app-background text-app-foreground">
       <header className="sticky top-0 z-20 border-b border-app-border/30 bg-app-surface/80 backdrop-blur-md">
-        <nav className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-5 sm:px-10">
+        <nav className="mx-auto flex h-18 max-w-360 items-center justify-between px-5 sm:px-10">
           <div className="flex items-center gap-6 sm:gap-8">
             <a className="text-2xl font-semibold tracking-[-0.04em]" href="#top">Convo</a>
             <div className="hidden items-center gap-6 text-sm text-app-muted sm:flex">
@@ -47,8 +47,8 @@ export default function Home() {
         </nav>
       </header>
 
-      <section id="top" className="relative isolate px-5 pb-24 pt-24 sm:px-10 sm:pb-[120px] sm:pt-[120px]">
-        <div className="hero-glow absolute left-1/2 top-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/5 blur-[32px] sm:h-[800px] sm:w-[800px]" />
+      <section id="top" className="relative isolate px-5 pb-24 pt-24 sm:px-10 sm:pb-30 sm:pt-30">
+        <div className="hero-glow absolute left-1/2 top-1/2 -z-10 h-125 w-125 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/5 blur-[32px] sm:h-[800px] sm:w-[800px]" />
         <div className="mx-auto flex max-w-[896px] flex-col items-center text-center">
           <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-[-0.045em] sm:text-5xl sm:leading-[1.17]">
             Transform your documents into intelligence
