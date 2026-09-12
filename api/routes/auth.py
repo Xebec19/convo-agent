@@ -1,11 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from models.user_model import User
-from schemas.response import APIResponse
 from schemas.auth import SignInRequest, SignUpRequest
+from schemas.response import APIResponse
 from services.auth_service import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     COOKIE_NAME,
@@ -13,6 +10,8 @@ from services.auth_service import (
     createHash,
     verifyHash,
 )
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

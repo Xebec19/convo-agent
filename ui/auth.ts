@@ -18,6 +18,17 @@ export const { auth, signIn, signOut } = NextAuth({
             email: parsedCredentials.email,
             password: parsedCredentials.password,
           });
+
+          if (!response.data.status) {
+            throw new Error(response.data.message);
+          }
+
+          return {
+            id: response.data.data.id,
+            name: response.data.data.name,
+            email: response.data.data.email,
+            image: response.data.data.image,
+          };
         } catch (err: unknown) {
           console.error(err);
           return null;
