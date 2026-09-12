@@ -1,16 +1,12 @@
 "use server";
 
 import { api } from "@/lib/axios";
+import z from "zod";
 
 const SIGNIN_URL = "/auth/signin";
 
-type signInParams = {
-  email: string;
-  password: string;
-};
-
 export async function signin({ email, password }: signInParams) {
-  return api.post(SIGNIN_URL, {
+  return api.post<z.infer<typeof >(SIGNIN_URL, {
     email: email,
     password: password,
   });

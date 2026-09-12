@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models.user_model import User
+from schemas.response import APIResponse
 from schemas.auth import SignInRequest, SignUpRequest
 from services.auth_service import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -16,11 +17,11 @@ from services.auth_service import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup")
+@router.post("/signup", response_model=APIResponse)
 async def signup(
     request: SignUpRequest,
     db: Session = Depends(get_db),  # noqa: B008
-):
+) -> APIResponse:
 
     query = (
         select(func.count())
@@ -56,15 +57,15 @@ async def signup(
     db.commit()
     db.refresh(user)
 
-    return {"id": user.id}
+    return APIResponse(status=True, data=user.id, message="user registered successful")
 
 
-@router.post("/signin")
+@router.post("/signin", response_model=APIResponse)
 async def signin(
     request: SignInRequest,
     response: Response,
     db: Session = Depends(get_db),
-):
+) -> APIResponse:
 
     user = db.execute(
         select(User).where(func.lower(User.email) == request.email.lower())
@@ -85,4 +86,4 @@ async def signin(
         path="/",
     )
 
-    return {"message": "Logged in"}
+    return APIResponse(status=True, data=user.id, message="user logged in successfully")
