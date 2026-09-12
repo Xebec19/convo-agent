@@ -2,28 +2,37 @@ import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { signin } from "./services/auth";
 
 export const { auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
       async authorize(credentials) {
-        const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
-          .safeParse(credentials);
+        try {
+          const parsedCredentials = z
+            .object({ email: z.email(), password: z.string().min(6) })
+            .parse(credentials);
 
-        if (
-          parsedCredentials.data?.email == "rohan@gmail.com" &&
-          parsedCredentials.data?.password == "password@123"
-        ) {
-          return new Promise((resolve, reject) => {
-            resolve({
-              name: "rohan",
-            });
+          const response = await signin({
+            email: parsedCredentials.email,
+            password: parsedCredentials.password,
           });
-        }
 
-        return null;
+          if (!response.data.status) {
+            throw new Error(response.data.message);
+          }
+
+          return {
+            id: response.data.data.id,
+            name: response.data.data.name,
+            email: response.data.data.email,
+            image: response.data.data.image,
+          };
+        } catch (err: unknown) {
+          console.error(err);
+          return null;
+        }
       },
     }),
   ],
