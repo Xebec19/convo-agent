@@ -1,5 +1,6 @@
 import os
 from datetime import UTC, datetime, timedelta
+
 from dotenv import load_dotenv
 from jose import jwt
 from pwdlib import PasswordHash

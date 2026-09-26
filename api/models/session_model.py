@@ -1,9 +1,8 @@
 from datetime import datetime
 
 from database import Base
-from models.user_model import User
-from sqlalchemy import TIMESTAMP, Enum, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import TIMESTAMP, Enum, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Session(Base):
@@ -29,8 +28,8 @@ class Session(Base):
         server_default="CURRENT_TIMESTAMP",
     )
     user_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id"),
+        # ForeignKey("users.id"),
         nullable=True,
     )
 
-    user: Mapped["User"] = relationship(back_populates="sessions")
+    # user: Mapped["User"] = relationship(back_populates="sessions")

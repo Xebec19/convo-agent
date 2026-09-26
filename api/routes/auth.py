@@ -1,5 +1,6 @@
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from models.session_model import Session as SessionSchema
 from models.user_model import User
 from schemas.auth import SignInRequest, SignUpRequest
 from schemas.response import APIResponse
@@ -74,6 +75,11 @@ async def signin(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
 
     token = createAccessToken(user.id)
+
+    session = SessionSchema(token=token, user_id=user.id)
+
+    db.add(session)
+    db.commit()
 
     response.set_cookie(
         key=COOKIE_NAME,
