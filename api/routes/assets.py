@@ -1,15 +1,18 @@
 import os
+from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, File, HTTPException, UploadFile
 from dotenv import load_dotenv
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from middlewares.authentication import get_current_user
 from schemas.response import APIResponse
-from uuid import uuid4
 
 load_dotenv()
 
-router = APIRouter(prefix="/assets", tags=["assets"])
+router = APIRouter(
+    prefix="/assets", dependencies=[Depends(get_current_user)], tags=["assets"]
+)
 
 bucket_name = os.getenv("AWS_S3_BUCKET")
 
