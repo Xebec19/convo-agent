@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from database import Base
+from db.db import Base
 from sqlalchemy import TIMESTAMP, Boolean, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

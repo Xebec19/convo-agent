@@ -15,12 +15,15 @@ router = APIRouter(
 )
 
 bucket_name = os.getenv("AWS_S3_BUCKET")
+aws_access_key = os.getenv("AWS_ACCESS_KEY")
+aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+aws_region_name = os.getenv("AWS_REGION")
 
 s3_client = boto3.client(
     "s3",
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    region_name=os.getenv("AWS_REGION"),
+    aws_access_key_id=aws_access_key,
+    aws_secret_access_key=aws_secret_access_key,
+    region_name=aws_region_name,
 )
 
 
@@ -36,9 +39,9 @@ async def upload_assset(file: UploadFile = File(...)) -> APIResponse:
             ExtraArgs={"ContentType": file.content_type or "application/octet-stream"},
         )
 
-        return APIResponse(
-            status=True, data=file.filename or "", message="File uploaded successfully"
-        )
+        url = f"https://{bucket_name}.s3.{aws_region_name}.amazonaws.com/{s3_key}"
+
+        return APIResponse(status=True, data=url, message="File uploaded successfully")
     except ClientError as e:
         raise HTTPException(
             status_code=500, detail="Failed to upload file to S3"
