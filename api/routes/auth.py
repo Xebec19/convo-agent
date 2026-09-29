@@ -1,7 +1,10 @@
-from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from models.session_model import Session as SessionSchema
 from models.user_model import User
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from database import get_db
 from schemas.auth import SignInRequest, SignUpRequest
 from schemas.response import APIResponse
 from services.auth_service import (
@@ -11,8 +14,6 @@ from services.auth_service import (
     createHash,
     verifyHash,
 )
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

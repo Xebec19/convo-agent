@@ -5,6 +5,7 @@ import boto3
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+
 from middlewares.authentication import get_current_user
 from schemas.response import APIResponse
 

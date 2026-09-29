@@ -1,4 +1,5 @@
 from fastapi.middleware.cors import CORSMiddleware
+
 from routes import assets, auth, users
 from server import app
 
