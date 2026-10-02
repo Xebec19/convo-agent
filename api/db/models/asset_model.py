@@ -1,10 +1,9 @@
 from datetime import datetime
 from enum import Enum as PyEnum
 
+from db.db import Base
 from sqlalchemy import TIMESTAMP, Boolean, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-
-from db.db import Base
 
 
 class AssetStatus(str, PyEnum):
@@ -51,4 +50,9 @@ class Asset(Base):
         Enum(AssetStatus, name="status"),
         nullable=False,
         server_default="active",
+    )
+
+    user_id: Mapped[int | None] = mapped_column(
+        # ForeignKey("users.id"),
+        nullable=True,
     )
