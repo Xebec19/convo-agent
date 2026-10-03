@@ -1,14 +1,14 @@
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from database import Base
+from db.db import Base
 from sqlalchemy import TIMESTAMP, Boolean, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class AssetStatus(str, PyEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
+class Status(str, PyEnum):
+    active = "active"
+    inactive = "inactive"
 
 
 class Asset(Base):
@@ -19,7 +19,7 @@ class Asset(Base):
         autoincrement=True,
     )
 
-    asset_name: Mapped[str] = mapped_column(
+    asset_key: Mapped[str] = mapped_column(
         String(120),
         nullable=False,
     )
@@ -46,8 +46,13 @@ class Asset(Base):
         server_default="CURRENT_TIMESTAMP",
     )
 
-    status: Mapped[AssetStatus] = mapped_column(
-        Enum(AssetStatus, name="status"),
+    status: Mapped[Status] = mapped_column(
+        Enum(Status, name="status"),
         nullable=False,
         server_default="active",
+    )
+
+    user_id: Mapped[int | None] = mapped_column(
+        # ForeignKey("users.id"),
+        nullable=True,
     )

@@ -15,5 +15,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  vector-db:
+    image: qdrant/qdrant
+
+  valkey:
+    image: valkey/valkey
+    ports:
+      - 6379:6379
 volumes:
   postgres_data:

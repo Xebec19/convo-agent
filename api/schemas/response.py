@@ -8,5 +8,5 @@ class APIResponse(BaseModel):
     """
 
     status: bool
-    data: str | int
+    data: str | int | object
     message: str

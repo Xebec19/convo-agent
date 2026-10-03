@@ -1,7 +1,7 @@
 from database import get_db
+from db.models.session_model import Session as SessionSchema
+from db.models.user_model import User
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from models.session_model import Session as SessionSchema
-from models.user_model import User
 from schemas.auth import SignInRequest, SignUpRequest
 from schemas.response import APIResponse
 from services.auth_service import (
