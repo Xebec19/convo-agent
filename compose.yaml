@@ -17,5 +17,10 @@ services:
 
   vector-db:
     image: qdrant/qdrant
+
+  valkey:
+    image: valkey/valkey
+    ports:
+      - 6379:6379
 volumes:
   postgres_data:

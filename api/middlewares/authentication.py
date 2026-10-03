@@ -1,12 +1,12 @@
 import os
 
 from database import get_db
+from db.models.asset_model import Status
+from db.models.session_model import Session as SessionSchema
+from db.models.user_model import User
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
-from models.asset_model import AssetStatus
-from models.session_model import Session as SessionSchema
-from models.user_model import User
 from services.auth_service import COOKIE_NAME
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,7 +42,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
             select(SessionSchema)
             .where(SessionSchema.token == access_token)
             .where(SessionSchema.user_id == int(user_id))
-            .where(SessionSchema.status == AssetStatus.ACTIVE)
+            .where(SessionSchema.status == Status.active.value)
         ).scalar()
 
         if session is None:
