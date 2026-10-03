@@ -15,5 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  vector-db:
+    image: qdrant/qdrant
 volumes:
   postgres_data:
