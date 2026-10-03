@@ -3,14 +3,15 @@ import os
 
 import boto3
 from dotenv import load_dotenv
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_qdrant import QdrantVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from qdrant_client import QdrantClient, models
 from sqlalchemy import select, update
-
+from pypdf import PdfReader
 from db.db import SessionLocal
 from db.models.asset_model import Asset
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from qdrant_client import QdrantClient, models
-from langchain_qdrant import QdrantVectorStore
+from logger import logger
 
 load_dotenv()
 
@@ -32,29 +33,33 @@ qdrant = QdrantClient(url="http://localhost:6333")
 
 def ingestion_worker(id: int, user_id: int):
     db = SessionLocal()
+    logger.info("DB connection opened")
+
+    logger.info("Job starting for asset: %d , user_id: %d", id, user_id)
 
     try:
         asset = db.execute(
             select(Asset).where(Asset.asset_id == id).where(Asset.user_id == user_id)
         ).scalar()
 
-        fileReader = get_s3_file(bucket_name=bucket_name, object_key=asset.asset_name)
+        if asset is None:
+            logger.info("Asset not found! asset id: %d, user id: %d", id, user_id)
+            return
 
-        pages = []
+        fileReader = get_s3_file(bucket_name=bucket_name, object_key=asset.asset_key)
 
-        for page in fileReader.pages:
-            text = page.extract_text()
-            if text:
-                pages.append(text)
+        buffer = PdfReader(fileReader)
 
-        doc = "\n".join(pages)
+        text = "\n".join(page.extract_text() or "" for page in buffer.pages)
+
+        logger.info("Asset %d is being downloaded from S3", id)
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
         )
 
-        chunks = splitter.create_documents([doc])
+        chunks = splitter.create_documents([text])
 
         embeddings = HuggingFaceEmbeddings(
             model_name="all-MiniLM-L6-v2",
@@ -63,6 +68,7 @@ def ingestion_worker(id: int, user_id: int):
         )
 
         ensure_collection()
+        logger.info("%s collection exists in vectoredb", collection)
 
         # save in vectordb
         QdrantVectorStore.from_documents(
@@ -72,6 +78,8 @@ def ingestion_worker(id: int, user_id: int):
             collection_name=collection,
         )
 
+        logger.info("Embeddings saved for Asset %d", id)
+
         db.execute(
             update(Asset)
             .where(Asset.asset_id == id)
@@ -79,8 +87,16 @@ def ingestion_worker(id: int, user_id: int):
             .values({"is_ingested": True})
         )
 
+        logger.info("Asset %s finished ingestion", id)
+
+        return id
+
+    except Exception as e:
+        logger.error("Ingestion failed for asset %d: %s", id, e)
+
     finally:
         db.close()
+        logger.info("DB connection closed")
 
 
 def get_s3_file(bucket_name: str, object_key: str) -> io.BytesIO:
