@@ -1,116 +1,129 @@
-import io
-import os
+import logging
+import tempfile
+from pathlib import Path
 
-import boto3
-from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from qdrant_client import QdrantClient, models
-from sqlalchemy import select, update
 from pypdf import PdfReader
-from db.db import SessionLocal
-from db.models.asset_model import Asset
-from logger import logger
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from qdrant_client.models import PointStruct
+from dotenv import load_dotenv
+import os
+import boto3
+import uuid
 
 load_dotenv()
 
-bucket_name = os.getenv("AWS_S3_BUCKET") or ""
+logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 32
+MAX_PDF_BYTES = 100 * 1024 * 1024
+MAX_PAGES = 2_000
+
+bucket_name = os.getenv("AWS_S3_BUCKET")
 aws_access_key = os.getenv("AWS_ACCESS_KEY")
 aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 aws_region_name = os.getenv("AWS_REGION")
-collection = os.getenv("COLLECTION_NAME") or ""
 
 s3_client = boto3.client(
     "s3",
-    aws_access_key_id=aws_access_key,
+    aws_access_key=aws_access_key,
     aws_secret_access_key=aws_secret_access_key,
-    region_name=aws_region_name,
+    aws_region_name=aws_region_name,
 )
 
-qdrant = QdrantClient(url="http://localhost:6333")
 
+def ingest_pdf_from_s3(
+    bucket_name: str,
+    object_key: str,
+    user_id: str,
+    asset_id: str,
+) -> int:
+    # Check the remote object's size before downloading
+    metadata = s3_client.head_object(Bucket=bucket_name, Key=object_key)
+    size = metadata["ContentLength"]
 
-def ingestion_worker(id: int, user_id: int):
-    db = SessionLocal()
-    logger.info("DB connection opened")
+    if size <= 0 or size > MAX_PDF_BYTES:
+        raise ValueError("PDF size is not allowed: {size} bytes")
 
-    logger.info("Job starting for asset: %d , user_id: %d", id, user_id)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
 
-    try:
-        asset = db.execute(
-            select(Asset).where(Asset.asset_id == id).where(Asset.user_id == user_id)
-        ).scalar()
+    total_chunks = 0
+    batch = []
 
-        if asset is None:
-            logger.info("Asset not found! asset id: %d, user id: %d", id, user_id)
-            return
+    # Download resource to disk
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
 
-        fileReader = get_s3_file(bucket_name=bucket_name, object_key=asset.asset_key)
+        with pdf_path.open("wb") as output:
+            s3_client.download_fileobj(
+                bucket_name,
+                object_key,
+                output
+            )
 
-        buffer = PdfReader(fileReader)
+        # Parse and process one page at a time
+        reader = PdfReader(str[pdf_path])
 
-        text = "\n".join(page.extract_text() or "" for page in buffer.pages)
+        try:
+            if reader.is_encrypted:
+                raise ValueError("Encrypted PDFs are not supported")
 
-        logger.info("Asset %d is being downloaded from S3", id)
+            if len(reader.pages) == 0 or len(reader.pages) > MAX_PAGES:
+                raise ValueError("PDF page count is not allowed")
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-        )
+            def flush_batch():
+                nonlocal total_chunks, batch
 
-        chunks = splitter.create_documents([text])
+                if not batch:
+                    return 
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
+                texts = [item["text"] for item in batch]
+                vectors = embeddings.embed_documents(texts)
 
-        ensure_collection()
-        logger.info("%s collection exists in vectoredb", collection)
+                points = [
+                    PointStruct(
+                        id=item["id"],
+                        vector=vector,
+                        payload=item["payload"],
+                    )
+                    for item, vector in zip(batch,vectors)
+                ]
 
-        # save in vectordb
-        QdrantVectorStore.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            url="http://localhost:6333",
-            collection_name=collection,
-        )
+                qdrant_client.upsert(
+                    collection_name=COLLECTION_NAME,
+                    points=points,
+                    wait=True
+                )
 
-        logger.info("Embeddings saved for Asset %d", id)
+                total_chunks += len(points)
+                batch = []
 
-        db.execute(
-            update(Asset)
-            .where(Asset.asset_id == id)
-            .where(Asset.user_id == user_id)
-            .values({"is_ingested": True})
-        )
+            for page_index, page in enumerate(chunks):
+                point_id = str(uuid.uuid5(
+                    NAMESPACE,
+                    f"{asset_id}:{page_index}:{chunk_index}"
+                ))
 
-        logger.info("Asset %s finished ingestion", id)
+                batch.append({
+                    "id": point_id,
+                    "text": chunk,
+                    "payload": {
+                        "user_id": user_id,
+                        "asset_id": asset_id,
+                        "page_number": page_index + 1,
+                        "chunk_index": chunk_index,
+                        "text": chunk
+                    },
+                })
 
-        return id
+                if len(batch) >= BATCH_SIZE:
+                    flush_batch()
 
-    except Exception as e:
-        logger.error("Ingestion failed for asset %d: %s", id, e)
+        flush_batch()
 
     finally:
-        db.close()
-        logger.info("DB connection closed")
+        render.close()
 
-
-def get_s3_file(bucket_name: str, object_key: str) -> io.BytesIO:
-    response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-
-    return io.BytesIO(response["Body"].read())
-
-
-def ensure_collection():
-    if not qdrant.collection_exists(collection):
-        qdrant.create_collection(
-            collection_name=collection,
-            vectors_config=models.VectorParams(
-                size=384,
-                distance=models.Distance.COSINE,
-            ),
-        )
+    
