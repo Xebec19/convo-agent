@@ -1,14 +1,8 @@
 import logging
-import tempfile
-from pathlib import Path
-
-from pypdf import PdfReader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from qdrant_client.models import PointStruct
-from dotenv import load_dotenv
 import os
+
 import boto3
-import uuid
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -31,13 +25,15 @@ s3_client = boto3.client(
 )
 
 
-def ingestion_worker(
-    user_id: str,
-    asset_id: str,
-) -> int:
+def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str) -> int:
 
-    # metadata = s3_client.head_object(Bucket=bucket_name, Key=object_key)
+    metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
-    # print(metadata)
+    size = metadata["ContentLength"]
+
+    if size <= 0 or size >= MAX_PDF_BYTES:
+        raise ValueError(f"PDF size is not allowed: {size} bytes")
+
+    # splitter = Recurs
 
     return 0
