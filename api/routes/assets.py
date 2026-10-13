@@ -62,6 +62,12 @@ async def upload_assset(
 
         logger.info("Asset saved in DB: %d", asset.asset_id)
 
+        logger.info(
+            "ingestion worker: %s, asset id: %d, user id: %d",
+            ingestion_worker,
+            asset.asset_id,
+            user.id,
+        )
         queue.enqueue(ingestion_worker, asset.asset_id, user.id)
 
         logger.info("Asset enqueued for ingestion: %d", asset.asset_id)
@@ -73,3 +79,19 @@ async def upload_assset(
         raise HTTPException(
             status_code=500, detail="Failed to upload file to S3"
         ) from e
+
+
+@router.post("/test", response_model=APIResponse)
+async def test_asset_ingestion() -> APIResponse:
+
+    asset_id = 14
+    user_id = 1
+
+    queue.enqueue(ingestion_worker, asset_id, user_id)
+    logger.info(
+        "queue triggered successfully for asset id: %d and user id %d",
+        asset_id,
+        user_id,
+    )
+
+    return APIResponse(status=True, data=None, message="Queue triggered successfully")
