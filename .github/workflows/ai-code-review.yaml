@@ -34,6 +34,11 @@ jobs:
           import os
           import urllib.request
 
+          key = os.environ.get("GEMINI_API_KEY") 
+          if not key: 
+            print("ERROR: GEMINI_API_KEY is not set in environment.") 
+            sys.exit(1)
+
           with open("pr.diff", "r", encoding="utf-8") as f:
               diff = f.read()
 
@@ -89,7 +94,7 @@ jobs:
               data=json.dumps(data).encode(),
               headers={
                   "Content-Type": "application/json",
-                  "x-goog-api-key": os.environ["GEMINI_API_KEY"],
+                  "x-goog-api-key": key,
               },
               method="POST",
           )
