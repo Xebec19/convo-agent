@@ -69,7 +69,7 @@ async def upload_assset(
             bucket_name,
             s3_key,
         )
-        # queue.enqueue(ingestion_worker, asset.asset_id, user.id)
+        queue.enqueue(ingestion_worker, asset.asset_id, user.id, bucket_name, s3_key)
 
         logger.info("Asset enqueued for ingestion: %d", asset.asset_id)
 
@@ -88,9 +88,7 @@ async def test_asset_ingestion() -> APIResponse:
     asset_id = 14
     user_id = 1
     bucket_name = "aws-xebec19-development-bucket"
-    s3_key = (
-        "rag-folder/uploads/cedca197-ffc8-498e-8bdb-d83f58d1a3d4-AMITY-RESULT-4.png"
-    )
+    s3_key = "rag-folder/uploads/c9ee3835-0e94-4b5b-a336-c7c81ae22517-keshav-dec-2026-TEE-Application-form.pdf"
 
     queue.enqueue(ingestion_worker, asset_id, user_id, bucket_name, s3_key)
     logger.info(

@@ -1,5 +1,8 @@
 import logging
 import os
+import tempfile
+import uuid
+from pathlib import Path
 
 import boto3
 from dotenv import load_dotenv
@@ -27,13 +30,28 @@ s3_client = boto3.client(
 
 def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str) -> int:
 
-    metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
+    try:
+        metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
-    size = metadata["ContentLength"]
+        size = metadata["ContentLength"]
 
-    if size <= 0 or size >= MAX_PDF_BYTES:
-        raise ValueError(f"PDF size is not allowed: {size} bytes")
+        if size <= 0 or size >= MAX_PDF_BYTES:
+            raise ValueError(f"PDF size is not allowed: {size} bytes")
 
-    # splitter = Recurs
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
+            logger.info("PDF path is %s", pdf_path)
+
+            with pdf_path.open("wb") as output:
+                s3_client.download_fileobj(bucket_name, s3_key, output)
+                logger.info("file downloaded successfully at %s", pdf_path)
+
+            # Basic file signature check
+            with pdf_path.open("rb") as pdf_file:
+                if pdf_file.read(5) != b"%PDF-":
+                    raise ValueError("The S3 object is not a valid PDF file")
+
+    except Exception as e:
+        logger.error("job threw error", e)
 
     return 0
