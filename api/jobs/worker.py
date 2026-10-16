@@ -1,25 +1,24 @@
-import io
+import logging
 import os
+import tempfile
+import uuid
+from pathlib import Path
 
 import boto3
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from qdrant_client import QdrantClient, models
-from sqlalchemy import select, update
-from pypdf import PdfReader
-from db.db import SessionLocal
-from db.models.asset_model import Asset
-from logger import logger
 
 load_dotenv()
 
-bucket_name = os.getenv("AWS_S3_BUCKET") or ""
+logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 32
+MAX_PDF_BYTES = 100 * 1024 * 1024
+MAX_PAGES = 2_000
+
+bucket_name = os.getenv("AWS_S3_BUCKET")
 aws_access_key = os.getenv("AWS_ACCESS_KEY")
 aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 aws_region_name = os.getenv("AWS_REGION")
-collection = os.getenv("COLLECTION_NAME") or ""
 
 s3_client = boto3.client(
     "s3",
@@ -28,89 +27,31 @@ s3_client = boto3.client(
     region_name=aws_region_name,
 )
 
-qdrant = QdrantClient(url="http://localhost:6333")
 
-
-def ingestion_worker(id: int, user_id: int):
-    db = SessionLocal()
-    logger.info("DB connection opened")
-
-    logger.info("Job starting for asset: %d , user_id: %d", id, user_id)
+def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str) -> int:
 
     try:
-        asset = db.execute(
-            select(Asset).where(Asset.asset_id == id).where(Asset.user_id == user_id)
-        ).scalar()
+        metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
-        if asset is None:
-            logger.info("Asset not found! asset id: %d, user id: %d", id, user_id)
-            return
+        size = metadata["ContentLength"]
 
-        fileReader = get_s3_file(bucket_name=bucket_name, object_key=asset.asset_key)
+        if size <= 0 or size >= MAX_PDF_BYTES:
+            raise ValueError(f"PDF size is not allowed: {size} bytes")
 
-        buffer = PdfReader(fileReader)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
+            logger.info("PDF path is %s", pdf_path)
 
-        text = "\n".join(page.extract_text() or "" for page in buffer.pages)
+            with pdf_path.open("wb") as output:
+                s3_client.download_fileobj(bucket_name, s3_key, output)
+                logger.info("file downloaded successfully at %s", pdf_path)
 
-        logger.info("Asset %d is being downloaded from S3", id)
-
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-        )
-
-        chunks = splitter.create_documents([text])
-
-        embeddings = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
-
-        ensure_collection()
-        logger.info("%s collection exists in vectoredb", collection)
-
-        # save in vectordb
-        QdrantVectorStore.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            url="http://localhost:6333",
-            collection_name=collection,
-        )
-
-        logger.info("Embeddings saved for Asset %d", id)
-
-        db.execute(
-            update(Asset)
-            .where(Asset.asset_id == id)
-            .where(Asset.user_id == user_id)
-            .values({"is_ingested": True})
-        )
-
-        logger.info("Asset %s finished ingestion", id)
-
-        return id
+            # Basic file signature check
+            with pdf_path.open("rb") as pdf_file:
+                if pdf_file.read(5) != b"%PDF-":
+                    raise ValueError("The S3 object is not a valid PDF file")
 
     except Exception as e:
-        logger.error("Ingestion failed for asset %d: %s", id, e)
+        logger.error("job threw error", e)
 
-    finally:
-        db.close()
-        logger.info("DB connection closed")
-
-
-def get_s3_file(bucket_name: str, object_key: str) -> io.BytesIO:
-    response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-
-    return io.BytesIO(response["Body"].read())
-
-
-def ensure_collection():
-    if not qdrant.collection_exists(collection):
-        qdrant.create_collection(
-            collection_name=collection,
-            vectors_config=models.VectorParams(
-                size=384,
-                distance=models.Distance.COSINE,
-            ),
-        )
+    return 0

@@ -62,7 +62,14 @@ async def upload_assset(
 
         logger.info("Asset saved in DB: %d", asset.asset_id)
 
-        queue.enqueue(ingestion_worker, asset.asset_id, user.id)
+        logger.info(
+            "asset id: %d, user id: %d, bucket name: %s, s3 key: %s",
+            asset.asset_id,
+            user.id,
+            bucket_name,
+            s3_key,
+        )
+        queue.enqueue(ingestion_worker, asset.asset_id, user.id, bucket_name, s3_key)
 
         logger.info("Asset enqueued for ingestion: %d", asset.asset_id)
 
@@ -73,3 +80,21 @@ async def upload_assset(
         raise HTTPException(
             status_code=500, detail="Failed to upload file to S3"
         ) from e
+
+
+@router.post("/test", response_model=APIResponse)
+async def test_asset_ingestion() -> APIResponse:
+
+    asset_id = 14
+    user_id = 1
+    bucket_name = "aws-xebec19-development-bucket"
+    s3_key = "rag-folder/uploads/c9ee3835-0e94-4b5b-a336-c7c81ae22517-keshav-dec-2026-TEE-Application-form.pdf"
+
+    queue.enqueue(ingestion_worker, asset_id, user_id, bucket_name, s3_key)
+    logger.info(
+        "queue triggered successfully for asset id: %d and user id %d",
+        asset_id,
+        user_id,
+    )
+
+    return APIResponse(status=True, data=None, message="Queue triggered successfully")
