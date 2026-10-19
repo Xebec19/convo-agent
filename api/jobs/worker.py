@@ -3,9 +3,15 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-
+from pypdf import PdfReader
 import boto3
 from dotenv import load_dotenv
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from qdrant_client.models import PointStruct
+from api.vectordb.client import qdrant_client, embeddings, COLLECTION_NAME
+
+NAMESPACE = uuid.UUID("f0e1d2c3-b4a5-4678-9012-3456789abcde")
 
 load_dotenv()
 
@@ -29,7 +35,10 @@ s3_client = boto3.client(
 
 
 def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str) -> int:
-
+    """
+    ingestion work ingests given s3 pdf file into
+    vector store
+    """
     try:
         metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
@@ -37,6 +46,14 @@ def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str)
 
         if size <= 0 or size >= MAX_PDF_BYTES:
             raise ValueError(f"PDF size is not allowed: {size} bytes")
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+        )
+
+        total_chunks = 0
+        batch = []
 
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
@@ -51,7 +68,79 @@ def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str)
                 if pdf_file.read(5) != b"%PDF-":
                     raise ValueError("The S3 object is not a valid PDF file")
 
+            reader = PdfReader(str(pdf_path))
+
+            try:
+                if reader.is_encrypted:
+                    raise ValueError("Encrypted PDFs are not supported")
+
+                if len(reader.pages) == 0 or len(reader.pages) > MAX_PAGES:
+                    raise ValueError("PDF page count is not allowed")
+
+                def flush_batch():
+                    nonlocal total_chunks, batch
+
+                    if not batch:
+                        return
+
+                    texts = [item["text"] for item in batch]
+                    vectors = embeddings.embed_documents(texts)
+
+                    points = [
+                        PointStruct(
+                            id=item["id"], vector=vector, payload=item["payload"]
+                        )
+                        for item, vector in zip(batch, vectors)
+                    ]
+
+                    qdrant_client.upsert(
+                        collection_name=COLLECTION_NAME, points=points, wait=True
+                    )
+
+                    total_chunks += len(points)
+                    batch = []
+
+                for page_index, page in enumerate(reader.pages):
+                    page_text = page.extract_text() or ""
+
+                    if not page_text.strip():
+                        continue
+
+                    chunks = splitter.split_text(page_text)
+
+                    for chunk_index, chunk in enumerate(chunks):
+                        # Stable IDs make retries overwrite the same points
+                        point_id = str(
+                            uuid.uuid5(
+                                NAMESPACE, f"{asset_id}:{page_index}:{chunk_index}"
+                            )
+                        )
+
+                        batch.append(
+                            {
+                                "id": point_id,
+                                "text": chunk,
+                                "payload": {
+                                    "user_id": user_id,
+                                    "asset_id": asset_id,
+                                    "page_number": page_index + 1,
+                                    "chunk_index": chunk_index,
+                                    "text": chunk,
+                                },
+                            }
+                        )
+
+                        if len(batch) >= BATCH_SIZE:
+                            flush_batch()
+
+                flush_batch()
+
+            finally:
+                reader.close()
+
+        logger.info("Ingested %s chunks for asset %s", total_chunks, asset_id)
+
     except Exception as e:
         logger.error("job threw error", e)
 
-    return 0
+    return total_chunks
