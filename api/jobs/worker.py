@@ -3,13 +3,13 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from pypdf import PdfReader
+
 import boto3
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-from qdrant_client.models import PointStruct
-from api.vectordb.client import qdrant_client, embeddings, COLLECTION_NAME
+from pypdf import PdfReader
+from qdrant_client.models import Distance, PointStruct, VectorParams
+from vectordb.client import COLLECTION_NAME, embeddings, qdrant_client
 
 NAMESPACE = uuid.UUID("f0e1d2c3-b4a5-4678-9012-3456789abcde")
 
@@ -34,113 +34,117 @@ s3_client = boto3.client(
 )
 
 
+def ensure_collection_exists():
+    if not qdrant_client.collection_exists(COLLECTION_NAME):
+        qdrant_client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=VectorParams(size=384, distance=Distance.COSINE),
+        )
+
+
 def ingestion_worker(user_id: str, asset_id: str, bucket_name: str, s3_key: str) -> int:
     """
     ingestion work ingests given s3 pdf file into
     vector store
     """
-    try:
-        metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
-        size = metadata["ContentLength"]
+    total_chunks = 0
 
-        if size <= 0 or size >= MAX_PDF_BYTES:
-            raise ValueError(f"PDF size is not allowed: {size} bytes")
+    metadata = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-        )
+    size = metadata["ContentLength"]
 
-        total_chunks = 0
-        batch = []
+    if size <= 0 or size >= MAX_PDF_BYTES:
+        raise ValueError(f"PDF size is not allowed: {size} bytes")
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
-            logger.info("PDF path is %s", pdf_path)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
 
-            with pdf_path.open("wb") as output:
-                s3_client.download_fileobj(bucket_name, s3_key, output)
-                logger.info("file downloaded successfully at %s", pdf_path)
+    ensure_collection_exists()
 
-            # Basic file signature check
-            with pdf_path.open("rb") as pdf_file:
-                if pdf_file.read(5) != b"%PDF-":
-                    raise ValueError("The S3 object is not a valid PDF file")
+    batch = []
 
-            reader = PdfReader(str(pdf_path))
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_path = Path(temp_dir) / f"{uuid.uuid4()}-document.pdf"
+        logger.info("PDF path is %s", pdf_path)
 
-            try:
-                if reader.is_encrypted:
-                    raise ValueError("Encrypted PDFs are not supported")
+        with pdf_path.open("wb") as output:
+            s3_client.download_fileobj(bucket_name, s3_key, output)
+            logger.info("file downloaded successfully at %s", pdf_path)
 
-                if len(reader.pages) == 0 or len(reader.pages) > MAX_PAGES:
-                    raise ValueError("PDF page count is not allowed")
+        # Basic file signature check
+        with pdf_path.open("rb") as pdf_file:
+            if pdf_file.read(5) != b"%PDF-":
+                raise ValueError("The S3 object is not a valid PDF file")
 
-                def flush_batch():
-                    nonlocal total_chunks, batch
+        reader = PdfReader(str(pdf_path))
 
-                    if not batch:
-                        return
+        try:
+            if reader.is_encrypted:
+                raise ValueError("Encrypted PDFs are not supported")
 
-                    texts = [item["text"] for item in batch]
-                    vectors = embeddings.embed_documents(texts)
+            if len(reader.pages) == 0 or len(reader.pages) > MAX_PAGES:
+                raise ValueError("PDF page count is not allowed")
 
-                    points = [
-                        PointStruct(
-                            id=item["id"], vector=vector, payload=item["payload"]
-                        )
-                        for item, vector in zip(batch, vectors)
-                    ]
+            def flush_batch():
+                nonlocal total_chunks, batch
 
-                    qdrant_client.upsert(
-                        collection_name=COLLECTION_NAME, points=points, wait=True
+                if not batch:
+                    return
+
+                texts = [item["text"] for item in batch]
+                vectors = embeddings.embed_documents(texts)
+
+                points = [
+                    PointStruct(id=item["id"], vector=vector, payload=item["payload"])
+                    for item, vector in zip(batch, vectors)
+                ]
+
+                qdrant_client.upsert(
+                    collection_name=COLLECTION_NAME, points=points, wait=True
+                )
+
+                total_chunks += len(points)
+                batch = []
+
+            for page_index, page in enumerate(reader.pages):
+                page_text = page.extract_text() or ""
+
+                if not page_text.strip():
+                    continue
+
+                chunks = splitter.split_text(page_text)
+
+                for chunk_index, chunk in enumerate(chunks):
+                    # Stable IDs make retries overwrite the same points
+                    point_id = str(
+                        uuid.uuid5(NAMESPACE, f"{asset_id}:{page_index}:{chunk_index}")
                     )
 
-                    total_chunks += len(points)
-                    batch = []
-
-                for page_index, page in enumerate(reader.pages):
-                    page_text = page.extract_text() or ""
-
-                    if not page_text.strip():
-                        continue
-
-                    chunks = splitter.split_text(page_text)
-
-                    for chunk_index, chunk in enumerate(chunks):
-                        # Stable IDs make retries overwrite the same points
-                        point_id = str(
-                            uuid.uuid5(
-                                NAMESPACE, f"{asset_id}:{page_index}:{chunk_index}"
-                            )
-                        )
-
-                        batch.append(
-                            {
-                                "id": point_id,
+                    batch.append(
+                        {
+                            "id": point_id,
+                            "text": chunk,
+                            "payload": {
+                                "user_id": user_id,
+                                "asset_id": asset_id,
+                                "page_number": page_index + 1,
+                                "chunk_index": chunk_index,
                                 "text": chunk,
-                                "payload": {
-                                    "user_id": user_id,
-                                    "asset_id": asset_id,
-                                    "page_number": page_index + 1,
-                                    "chunk_index": chunk_index,
-                                    "text": chunk,
-                                },
-                            }
-                        )
+                            },
+                        }
+                    )
 
-                        if len(batch) >= BATCH_SIZE:
-                            flush_batch()
+                    if len(batch) >= BATCH_SIZE:
+                        flush_batch()
 
-                flush_batch()
+            flush_batch()
 
-            finally:
-                reader.close()
+        finally:
+            reader.close()
 
-        logger.info("Ingested %s chunks for asset %s", total_chunks, asset_id)
-
-    except Exception as e:
-        logger.error("job threw error", e)
+    logger.info("Ingested %s chunks for asset %s", total_chunks, asset_id)
 
     return total_chunks
