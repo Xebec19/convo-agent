@@ -1,7 +1,9 @@
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-
 from routes import assets, auth, users
 from server import app
+
+load_dotenv()
 
 origins = ["http://localhost:3000"]
 

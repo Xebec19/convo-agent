@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -15,8 +14,6 @@ from logger import logger
 from middlewares.authentication import get_current_user
 from rqclient.client import queue
 from schemas.response import APIResponse
-
-load_dotenv()
 
 router = APIRouter(
     prefix="/assets", dependencies=[Depends(get_current_user)], tags=["assets"]

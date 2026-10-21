@@ -1,6 +1,5 @@
 import os
 
-from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -11,8 +10,6 @@ from db.models.asset_model import Status
 from db.models.session_model import Session as SessionSchema
 from db.models.user_model import User
 from services.auth_service import COOKIE_NAME
-
-load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY") or ""
 ALGORITHM = "HS256"
