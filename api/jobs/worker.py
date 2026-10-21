@@ -11,15 +11,15 @@ from pypdf import PdfReader
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from vectordb.client import COLLECTION_NAME, embeddings, qdrant_client
 
-NAMESPACE = uuid.UUID("f0e1d2c3-b4a5-4678-9012-3456789abcde")
-
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 32
-MAX_PDF_BYTES = 100 * 1024 * 1024
-MAX_PAGES = 2_000
+MAX_PDF_BYTES = int(os.getenv("MAX_PDF_BYTES", 50 * 1024 * 1024))  # e.g., 50MB
+MAX_PAGES = int(os.getenv("MAX_PAGES", 500))
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", 100))
+
+NAMESPACE = uuid.UUID("f0e1d2c3-b4a5-4678-9012-3456789abcde")
 
 bucket_name = os.getenv("AWS_S3_BUCKET")
 aws_access_key = os.getenv("AWS_ACCESS_KEY")
