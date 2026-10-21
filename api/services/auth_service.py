@@ -1,11 +1,8 @@
 import os
 from datetime import UTC, datetime, timedelta
 
-from dotenv import load_dotenv
 from jose import jwt
 from pwdlib import PasswordHash
-
-load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
