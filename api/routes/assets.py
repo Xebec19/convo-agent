@@ -3,17 +3,16 @@ from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
-
 from database import get_db
 from db.models.asset_model import Asset
 from db.models.user_model import User
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from jobs.worker import ingestion_worker
 from logger import logger
 from middlewares.authentication import get_current_user
 from rqclient.client import queue
 from schemas.response import APIResponse
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/assets", dependencies=[Depends(get_current_user)], tags=["assets"]

@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 from qdrant_client.models import Distance, PointStruct, VectorParams
-
 from vectordb.client import COLLECTION_NAME, embeddings, qdrant_client
 
 load_dotenv()

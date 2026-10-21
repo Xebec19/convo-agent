@@ -1,9 +1,8 @@
 from datetime import datetime
 
+from db.db import Base
 from sqlalchemy import TIMESTAMP, Enum, Text
 from sqlalchemy.orm import Mapped, mapped_column
-
-from db.db import Base
 
 
 class Session(Base):
