@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-from routes import assets, auth, users
+from routes import assets, auth, conversations, users
 from server import app
 
 load_dotenv()
@@ -19,3 +19,4 @@ app.include_router(auth.router)
 
 app.include_router(users.router)
 app.include_router(assets.router)
+app.include_router(conversations.router)
