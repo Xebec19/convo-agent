@@ -57,7 +57,9 @@ async def signup(
     db.commit()
     db.refresh(user)
 
-    return APIResponse(status=True, data=user.id, message="user registered successful")
+    return APIResponse(
+        status=True, data=user.user_id, message="user registered successful"
+    )
 
 
 @router.post("/signin", response_model=APIResponse)
@@ -74,9 +76,9 @@ async def signin(
     if user is None or verifyHash(request.password, user.password_hash) is False:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")
 
-    token = createAccessToken(user.id)
+    token = createAccessToken(user.user_id)
 
-    session = SessionSchema(token=token, user_id=user.id)
+    session = SessionSchema(token=token, user_id=user.user_id)
 
     db.add(session)
     db.commit()
@@ -91,4 +93,6 @@ async def signin(
         path="/",
     )
 
-    return APIResponse(status=True, data=user.id, message="user logged in successfully")
+    return APIResponse(
+        status=True, data=user.user_id, message="user logged in successfully"
+    )

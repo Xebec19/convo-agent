@@ -51,7 +51,7 @@ async def upload_assset(
 
         logger.info("Asset uploaded to S3: %s", url)
 
-        asset = Asset(asset_key=s3_key, url=url, user_id=user.id)
+        asset = Asset(asset_key=s3_key, url=url, user_id=user.user_id)
 
         db.add(asset)
         db.commit()
@@ -62,11 +62,13 @@ async def upload_assset(
         logger.info(
             "asset id: %d, user id: %d, bucket name: %s, s3 key: %s",
             asset.asset_id,
-            user.id,
+            user.user_id,
             bucket_name,
             s3_key,
         )
-        queue.enqueue(ingestion_worker, asset.asset_id, user.id, bucket_name, s3_key)
+        queue.enqueue(
+            ingestion_worker, asset.asset_id, user.user_id, bucket_name, s3_key
+        )
 
         logger.info("Asset enqueued for ingestion: %d", asset.asset_id)
 

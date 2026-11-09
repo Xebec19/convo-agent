@@ -1,14 +1,17 @@
+import uuid
 from datetime import datetime
 
 from db.db import Base
-from sqlalchemy import TIMESTAMP, Enum, Text
+from sqlalchemy import TIMESTAMP, Enum, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Session(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
     token: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -27,7 +30,7 @@ class Session(Base):
         TIMESTAMP,
         server_default="CURRENT_TIMESTAMP",
     )
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         # ForeignKey("users.id"),
         nullable=True,
     )
