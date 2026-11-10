@@ -38,7 +38,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         session = db.execute(
             select(SessionSchema)
             .where(SessionSchema.token == access_token)
-            .where(SessionSchema.user_id == int(user_id))
+            .where(SessionSchema.user_id == user_id)
             .where(SessionSchema.status == Status.active.value)
         ).scalar()
 
@@ -47,10 +47,13 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
                 status_code=status.HTTP_401_UNAUTHORIZED,
             )
 
-        user = db.execute(select(User).where(User.id == int(user_id))).scalars().one()
+        user = db.execute(select(User).where(User.user_id == user_id)).scalars().one()
 
         return User(
-            id=user.id, name=user.name, email=user.email, phone_num=user.phone_num
+            user_id=user.user_id,
+            name=user.name,
+            email=user.email,
+            phone_num=user.phone_num,
         )
 
     except JWTError:

@@ -20,10 +20,6 @@ class Conversation(Base):
         nullable=False,
         server_default="active",
     )
-    updated_on: Mapped[datetime] = mapped_column(
-        TIMESTAMP,
-        server_default="CURRENT_TIMESTAMP",
-    )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         # ForeignKey("users.id"),
         nullable=True,

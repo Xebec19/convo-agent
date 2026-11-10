@@ -21,16 +21,20 @@ async def createConverstation(
     user: User = Depends(get_current_user),
 ) -> APIResponse:
 
-    conversation = Conversation(user_id=user.id)
+    conversation = Conversation(user_id=user.user_id)
 
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
 
     logger.info(
-        "conversation %d created, user id: %d", conversation.id, conversation.user_id
+        "conversation %d created, user id: %d",
+        conversation.conversation_id,
+        conversation.user_id,
     )
 
     return APIResponse(
-        status=True, data=conversation.id, message="Conversation created successfully"
+        status=True,
+        data=conversation.conversation_id,
+        message="Conversation created successfully",
     )
