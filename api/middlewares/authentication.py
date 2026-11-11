@@ -1,15 +1,14 @@
 import os
 
-from fastapi import Depends, HTTPException, Request, status
-from jose import JWTError, jwt
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from database import get_db
 from db.models.asset_model import Status
 from db.models.session_model import Session as SessionSchema
 from db.models.user_model import User
+from fastapi import Depends, HTTPException, Request, status
+from jose import JWTError, jwt
 from services.auth_service import COOKIE_NAME
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY") or ""
 ALGORITHM = "HS256"
@@ -39,7 +38,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         session = db.execute(
             select(SessionSchema)
             .where(SessionSchema.token == access_token)
-            .where(SessionSchema.user_id == int(user_id))
+            .where(SessionSchema.user_id == user_id)
             .where(SessionSchema.status == Status.active.value)
         ).scalar()
 
@@ -48,10 +47,13 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
                 status_code=status.HTTP_401_UNAUTHORIZED,
             )
 
-        user = db.execute(select(User).where(User.id == int(user_id))).scalars().one()
+        user = db.execute(select(User).where(User.user_id == user_id)).scalars().one()
 
         return User(
-            id=user.id, name=user.name, email=user.email, phone_num=user.phone_num
+            user_id=user.user_id,
+            name=user.name,
+            email=user.email,
+            phone_num=user.phone_num,
         )
 
     except JWTError:

@@ -3,17 +3,16 @@ from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
-
 from database import get_db
 from db.models.asset_model import Asset
 from db.models.user_model import User
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from jobs.worker import ingestion_worker
 from logger import logger
 from middlewares.authentication import get_current_user
 from rqclient.client import queue
 from schemas.response import APIResponse
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/assets", dependencies=[Depends(get_current_user)], tags=["assets"]
@@ -52,7 +51,7 @@ async def upload_assset(
 
         logger.info("Asset uploaded to S3: %s", url)
 
-        asset = Asset(asset_key=s3_key, url=url, user_id=user.id)
+        asset = Asset(asset_key=s3_key, url=url, user_id=user.user_id)
 
         db.add(asset)
         db.commit()
@@ -63,11 +62,13 @@ async def upload_assset(
         logger.info(
             "asset id: %d, user id: %d, bucket name: %s, s3 key: %s",
             asset.asset_id,
-            user.id,
+            user.user_id,
             bucket_name,
             s3_key,
         )
-        queue.enqueue(ingestion_worker, asset.asset_id, user.id, bucket_name, s3_key)
+        queue.enqueue(
+            ingestion_worker, asset.asset_id, user.user_id, bucket_name, s3_key
+        )
 
         logger.info("Asset enqueued for ingestion: %d", asset.asset_id)
 
