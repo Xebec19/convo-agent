@@ -9,8 +9,9 @@ from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
+from qdrant_client import models
 from qdrant_client.models import Distance, PointStruct, VectorParams
-from vectordb.client import COLLECTION_NAME, embeddings, qdrant_client
+from vectordb.client import COLLECTION_NAME, qdrant_client
 
 load_dotenv()
 
@@ -22,6 +23,8 @@ BATCH_SIZE = int(os.getenv("BATCH_SIZE", 100))
 BUCKET_NAME = os.getenv("AWS_S3_BUCKET")
 
 NAMESPACE = uuid.UUID("f0e1d2c3-b4a5-4678-9012-3456789abcde")
+
+MODEL_NAME = "BAAI/bge-small-en-v1.5"
 
 bucket_name = os.getenv("AWS_S3_BUCKET")
 aws_access_key = os.getenv("AWS_ACCESS_KEY")
@@ -40,7 +43,10 @@ def ensure_collection_exists():
     if not qdrant_client.collection_exists(COLLECTION_NAME):
         qdrant_client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=384, distance=Distance.COSINE),
+            vectors_config=VectorParams(
+                size=qdrant_client.get_embedding_size(MODEL_NAME),
+                distance=Distance.COSINE,
+            ),
         )
 
 
@@ -103,7 +109,10 @@ def ingestion_worker(user_id: str, asset_id: str, s3_key: str) -> int:
                         return
 
                     texts = [item["text"] for item in batch]
-                    vectors = embeddings.embed_documents(texts)
+                    # vectors = embeddings.embed(texts)
+                    vectors = [
+                        models.Document(text=text, model=MODEL_NAME) for text in texts
+                    ]
 
                     points = [
                         PointStruct(

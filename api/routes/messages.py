@@ -1,3 +1,4 @@
+
 from database import get_db
 from db.models.conversation_model import Conversation
 from db.models.message_model import Message
@@ -28,9 +29,9 @@ async def create_message(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid request")
 
     conversation = db.execute(
-        select(Conversation).where(
-            Conversation.conversation_id == request.conversation_id
-        )
+        select(Conversation)
+        .where(Conversation.conversation_id == request.conversation_id)
+        .where(Conversation.user_id == user.user_id)
     )
 
     if conversation is None:
@@ -41,5 +42,7 @@ async def create_message(
 
     db.add(message)
     db.commit()
+
+    # qdrant_client.
 
     return APIResponse(status=True, data="", message="message posted successfully")
