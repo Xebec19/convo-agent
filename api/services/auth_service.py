@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from jose import jwt
@@ -20,7 +21,7 @@ def verifyHash(password: str, hash: str) -> bool:
     return password_hash.verify(password=password, hash=hash)
 
 
-def createAccessToken(user_id: int) -> str:
+def createAccessToken(user_id: uuid.UUID) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     if SECRET_KEY is None:

@@ -1,10 +1,10 @@
+import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import TIMESTAMP, Boolean, Enum, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-
 from db.db import Base
+from sqlalchemy import TIMESTAMP, Boolean, Enum, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Status(str, PyEnum):
@@ -15,9 +15,8 @@ class Status(str, PyEnum):
 class Asset(Base):
     __tablename__ = "assets"
 
-    asset_id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
+    asset_id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
     )
 
     asset_key: Mapped[str] = mapped_column(
@@ -53,7 +52,7 @@ class Asset(Base):
         server_default="active",
     )
 
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         # ForeignKey("users.id"),
         nullable=True,
     )
